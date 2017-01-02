@@ -417,6 +417,8 @@ public class UnitManager : MonoBehaviour
             //Spisujemy covery używane przez tę postać
             List<Obstacle> usedCovers = FindAdjacentCovers();
 
+            Debug.DrawRay(ray.origin, ray.direction, Color.black, 5f);
+
             //Robimy raycasta i szukamy tam covera
             RaycastHit hit;
             Debug.DrawRay(ray.origin, ray.direction, Color.blue, 10f);
@@ -452,6 +454,8 @@ public class UnitManager : MonoBehaviour
 
     public Visibility CheckSight(UnitManager shooter, UnitManager defender)
     {
+        //Odwracamy postać by była gotowa do strzału
+        shooter.AssumeCoveredPosition(defender);
         //Robimy raycasta wymiany ognia     
         RaycastHit[] hits;
         hits = Physics.RaycastAll(shooter.transform.position + new Vector3(0f, 1f), (defender.transform.position - shooter.transform.position), Vector3.Distance(shooter.transform.position, defender.transform.position), SightMask, QueryTriggerInteraction.Collide);
@@ -460,7 +464,7 @@ public class UnitManager : MonoBehaviour
         bool bShooterHitHighCov = false;
         bool bDefenderHitHighCov = false;
         //Sprawdzamy widoczność od shootera do defendera
-        if(shooter.FindShootingCover(defender).CoverValue >= 80)    //Jeśli strzelec musi strzelić przez coś wysokiego, to musimy sprawdzić wychylanie
+        if(shooter.FindShootingCover(defender) != null && shooter.FindShootingCover(defender).CoverValue >= 80)    //Jeśli strzelec musi strzelić przez coś wysokiego, to musimy sprawdzić wychylanie
         {
             FindPeekDirection(defender);
         }
@@ -522,14 +526,14 @@ public class UnitManager : MonoBehaviour
         Debug.DrawRay(transform.position + new Vector3(0, 1f, 0f), -transform.right + new Vector3(0, -1f, 0), Color.red, 10f);
         RaycastHit hit;
         //Sprawdzamy czy możemy wychylić się na prawo (operacje bitowe to layermask dla: grid, character, obstacle i sightcatcher)
-        if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0f), transform.right + new Vector3(0, -1f, 0), out hit, 1.5f, 1 << 8 | 1 << 10 | 1 << 11 | 1 << 12))
+        if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0f), transform.right + new Vector3(0, -1f, 0), out hit, 2f, 1 << 8 | 1 << 10 | 1 << 11 | 1 << 12))
         {
             //Czy trafiliśmy grida? i czy to nie jest czasem to na czym stoimy i czy po tym tilu można chodzić?
             if (hit.collider.GetComponent<Tile>() && hit.collider.GetComponent<Tile>() != CharacterMovement.GetLastTile() && hit.collider.GetComponent<Tile>().IsWalkable())
                 return PeekDir.Right;
         }
         //Sprawdzamy czy możemy wychylić się na lewo
-        if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0f), -transform.right + new Vector3(0, -1f, 0), out hit, 1.5f, 1 << 8 | 1 << 10 | 1 << 11 | 1 << 12))
+        if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0f), -transform.right + new Vector3(0, -1f, 0), out hit, 2f, 1 << 8 | 1 << 10 | 1 << 11 | 1 << 12))
         {
             //Czy trafiliśmy grida? i czy to nie jest czasem to na czym stoimy i czy po tym tilu można chodzić?
             if (hit.collider.GetComponent<Tile>() && hit.collider.GetComponent<Tile>() != CharacterMovement.GetLastTile() && hit.collider.GetComponent<Tile>().IsWalkable())
