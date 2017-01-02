@@ -25,6 +25,7 @@ public class Ability
 
         AbilityUser.GetCommander().GetComponent<CameraMovement>().StartSwiping(target.gameObject);
         AbilityUser.SetCalculatedStamina(AbilityUser.GetStamina() - StaminaCost);
+        AbilityUser.AssumeCoveredPosition(target);
     }
 
     public virtual void OnCancel()

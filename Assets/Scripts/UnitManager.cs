@@ -265,9 +265,9 @@ public class UnitManager : MonoBehaviour
 
             for (int i = 0; i < Enemies.Count; i++)
             {
-                if (Vector3.Distance(this.transform.position, Enemies[i].transform.position) <= UnitSightRange && FindEffectiveCover(this, Enemies[i]) < FindEffectiveCover(this, mostDangerous))
+                if (Vector3.Distance(this.transform.position, Enemies[i].transform.position) <= UnitSightRange && FindEffectiveCover(this, Enemies[i]) < FindEffectiveCover(this, mostDangerous) && CheckSight(Enemies[i], this) != Visibility.Black)
                     mostDangerous = Enemies[i];
-                else if (Vector3.Distance(this.transform.position, Enemies[i].transform.position) < Vector3.Distance(this.transform.position, mostDangerous.transform.position) && FindEffectiveCover(this, Enemies[i]) == FindEffectiveCover(this, mostDangerous))
+                else if (Vector3.Distance(this.transform.position, Enemies[i].transform.position) < Vector3.Distance(this.transform.position, mostDangerous.transform.position) && FindEffectiveCover(this, Enemies[i]) == FindEffectiveCover(this, mostDangerous) && CheckSight(Enemies[i], this) != Visibility.Black)
                     mostDangerous = Enemies[i];
             }
 
@@ -280,7 +280,7 @@ public class UnitManager : MonoBehaviour
             return null;
     }
 
-    public void AssumeCoveredPosition()
+    public void AssumeCoveredPosition(UnitManager coverAgainst = default(UnitManager))
     {
         //Spisujemy wartości coverów postaci
         int[] covervals = new int[4];
@@ -288,16 +288,17 @@ public class UnitManager : MonoBehaviour
         CoverValues.TryGetValue(Orientation.South, out covervals[1]);
         CoverValues.TryGetValue(Orientation.West, out covervals[2]);
         CoverValues.TryGetValue(Orientation.East, out covervals[3]);
-        //Czy ktoś w ogóle jest w zasięgu?
-        UnitManager mostDangerous = FindMostDangerousEnemy();
+        //Jeśli nie mamy konkretnego celu, to chowamy się przed najniebezpieczniejszym
+        if(coverAgainst == null)
+            coverAgainst = FindMostDangerousEnemy();
 
-        if (mostDangerous != null) 
+        if (coverAgainst != null) 
         {
             //Jeśli tak - sprawdźmy czy mamy jakikolwiek cover przeciwko niemu
-            if (FindEffectiveCover(this, mostDangerous) > 0)
+            if (FindEffectiveCover(this, coverAgainst) > 0)
             {
                 //Jeśli mamy - sprawdźmy kąt 
-                Vector3 heading = this.CharacterMovement.GetLastTile().transform.position - mostDangerous.CharacterMovement.GetLastTile().transform.position;
+                Vector3 heading = this.CharacterMovement.GetLastTile().transform.position - coverAgainst.CharacterMovement.GetLastTile().transform.position;
                 int defendAngle = (int)MathLibrary.AngleSigned(this.CharacterMovement.GetLastTile().transform.forward, heading, Vector3.up);
                 if (defendAngle < 0)
                     defendAngle = 360 - Mathf.Abs(defendAngle);
@@ -314,7 +315,7 @@ public class UnitManager : MonoBehaviour
             else
             {
                 //Jeśli nie mamy - ustawmy się do niego przodem
-                this.transform.LookAt(mostDangerous.transform.position);
+                this.transform.LookAt(coverAgainst.transform.position);
                 Debug.Log(gameObject.name + " is flanked!");
             }
         }
@@ -461,7 +462,7 @@ public class UnitManager : MonoBehaviour
         //Sprawdzamy widoczność od shootera do defendera
         if(shooter.FindShootingCover(defender).CoverValue >= 80)    //Jeśli strzelec musi strzelić przez coś wysokiego, to musimy sprawdzić wychylanie
         {
-
+            FindPeekDirection(defender);
         }
         if (FindEffectiveCover(defender, shooter) == 100)
         {
@@ -515,7 +516,28 @@ public class UnitManager : MonoBehaviour
             return Visibility.Black;
     }
 
-   // public PeekDir 
+    public PeekDir FindPeekDirection(UnitManager peekAgainst)
+    {
+        Debug.DrawRay(transform.position + new Vector3(0, 1f, 0f), transform.right + new Vector3(0, -1f, 0), Color.blue, 10f);
+        Debug.DrawRay(transform.position + new Vector3(0, 1f, 0f), -transform.right + new Vector3(0, -1f, 0), Color.red, 10f);
+        RaycastHit hit;
+        //Sprawdzamy czy możemy wychylić się na prawo (operacje bitowe to layermask dla: grid, character, obstacle i sightcatcher)
+        if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0f), transform.right + new Vector3(0, -1f, 0), out hit, 1.5f, 1 << 8 | 1 << 10 | 1 << 11 | 1 << 12))
+        {
+            //Czy trafiliśmy grida? i czy to nie jest czasem to na czym stoimy i czy po tym tilu można chodzić?
+            if (hit.collider.GetComponent<Tile>() && hit.collider.GetComponent<Tile>() != CharacterMovement.GetLastTile() && hit.collider.GetComponent<Tile>().IsWalkable())
+                return PeekDir.Right;
+        }
+        //Sprawdzamy czy możemy wychylić się na lewo
+        if (Physics.Raycast(transform.position + new Vector3(0, 1f, 0f), -transform.right + new Vector3(0, -1f, 0), out hit, 1.5f, 1 << 8 | 1 << 10 | 1 << 11 | 1 << 12))
+        {
+            //Czy trafiliśmy grida? i czy to nie jest czasem to na czym stoimy i czy po tym tilu można chodzić?
+            if (hit.collider.GetComponent<Tile>() && hit.collider.GetComponent<Tile>() != CharacterMovement.GetLastTile() && hit.collider.GetComponent<Tile>().IsWalkable())
+                return PeekDir.Left;
+        }
+        //Jak nic nie pasi to zwracamy none
+        return PeekDir.None;
+    }
 
     public void UseAbility(int index, UnitManager target)
     {
